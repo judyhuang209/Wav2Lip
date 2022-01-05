@@ -7,7 +7,10 @@
 # xhost +local:root
 
 # 4. instantiate the container
-# docker run --rm --gpus all -v /tmp/.X11-unix:/tmp/.X11-unix -v $PWD:/workspace/src -e DISPLAY=$DISPLAY --device /dev/dri -ti wav2lip bash
+# docker run --rm --gpus all --name my_wav2lip -v /tmp/.X11-unix:/tmp/.X11-unix -v $PWD:/workspace/src -e DISPLAY=$DISPLAY --device /dev/dri -tid wav2lip bash
+
+# 5. execute the container
+# docker exec -it my_wav2lip bash
 
 # NOTES:
 # export CUDA_VISIBLE_DEVICES="" ## force cpu only
@@ -41,7 +44,7 @@ RUN export DEBIAN_FRONTEND=noninteractive RUNLEVEL=1 ; \
 # # (if we use COPY it will invalidate the cache and  reinstall the dependencies for every change in the sources)
 WORKDIR /workspace
 RUN chmod -R a+w /workspace
-RUN git clone https://github.com/Rudrabha/Wav2Lip
+RUN git clone https://github.com/judyhuang209/Wav2Lip
 WORKDIR /workspace/Wav2Lip
 RUN pip3 install --upgrade pip
 RUN pip3 install -r requirements.txt
