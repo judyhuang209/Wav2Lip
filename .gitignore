@@ -16,3 +16,4 @@ evaluation/test_filelists/lr*.txt
 *.mp3
 data_root/
 .idea/
+venv/
