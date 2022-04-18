@@ -1,8 +1,8 @@
 from os.path import dirname, join, basename, isfile
 from tqdm import tqdm
 
-from models import SyncNet_color as SyncNet
-from models import Wav2Lip as Wav2Lip
+from models.syncnetv2 import SyncNet_color as SyncNet
+from models.wav2lipv2 import Wav2Lip as Wav2Lip
 import audio
 
 import torch
@@ -14,7 +14,7 @@ import numpy as np
 
 from glob import glob
 
-import os, random, cv2, argparse
+import os, random, cv2, argparse, wandb
 from hparams import hparams, get_image_list
 
 parser = argparse.ArgumentParser(description='Code to train the Wav2Lip model without the visual quality discriminator')
@@ -25,6 +25,7 @@ parser.add_argument('--checkpoint_dir', help='Save checkpoints to this directory
 parser.add_argument('--syncnet_checkpoint_path', help='Load the pre-trained Expert discriminator', required=True, type=str)
 
 parser.add_argument('--checkpoint_path', help='Resume from this checkpoint', default=None, type=str)
+parser.add_argument('--wandb_name', help='WandB name', default='wav2lip_avspeech', type=str)
 
 args = parser.parse_args()
 
@@ -202,7 +203,12 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
 
     global global_step, global_epoch
     resumed_step = global_step
- 
+    
+    # init wandb run
+    wandb_config = hparams.data
+    wandb.init(project=args.wandb_name, config=wandb_config, allow_val_change=true)
+    del wandb_config
+    
     while global_epoch < nepochs:
         print('Starting Epoch: {}'.format(global_epoch))
         running_sync_loss, running_l1_loss = 0., 0.
@@ -242,7 +248,10 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
             else:
                 running_sync_loss += 0.
 
+            temp_l1 = running_l1_loss / (step + 1)
+            temp_syncloss = running_sync_loss / (step + 1)
             if global_step == 1 or global_step % checkpoint_interval == 0:
+                wandb.log({"train": {"l1": temp_l1, "sync_loss": temp_syncloss}, "step": global_step, "epoch": global_epoch, commit=False})
                 save_checkpoint(
                     model, optimizer, global_step, checkpoint_dir, global_epoch)
 
@@ -251,13 +260,14 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
                     average_sync_loss = eval_model(test_data_loader, global_step, device, model, checkpoint_dir)
 
                     if average_sync_loss < .75:
+                        wandb.config.update({'syncnet_wt': 0.01})
                         hparams.set_hparam('syncnet_wt', 0.01) # without image GAN a lesser weight is sufficient
 
-            prog_bar.set_description('L1: {}, Sync Loss: {}'.format(running_l1_loss / (step + 1),
-                                                                    running_sync_loss / (step + 1)))
+            prog_bar.set_description('L1: {}, Sync Loss: {}'.format(temp_l1,
+                                                                    temp_syncloss))
 
         global_epoch += 1
-        
+
 
 def eval_model(test_data_loader, global_step, device, model, checkpoint_dir):
     eval_steps = 700
@@ -286,7 +296,8 @@ def eval_model(test_data_loader, global_step, device, model, checkpoint_dir):
             if step > eval_steps: 
                 averaged_sync_loss = sum(sync_losses) / len(sync_losses)
                 averaged_recon_loss = sum(recon_losses) / len(recon_losses)
-
+                
+                wandb.log({"val": {"l1": averaged_recon_loss, "sync_loss": averaged_sync_loss}, "step": global_step, "epoch": global_epoch})
                 print('L1: {}, Sync loss: {}'.format(averaged_recon_loss, averaged_sync_loss))
 
                 return averaged_sync_loss

@@ -1,7 +1,7 @@
 from os.path import dirname, join, basename, isfile
 from tqdm import tqdm
 
-from models import SyncNet_color as SyncNet
+from models.syncnetv2 import SyncNet_color as SyncNet
 import audio
 
 import torch
@@ -13,7 +13,7 @@ import numpy as np
 
 from glob import glob
 
-import os, random, cv2, argparse
+import os, random, cv2, argparse, wandb
 from hparams import hparams, get_image_list
 
 parser = argparse.ArgumentParser(description='Code to train the expert lip-sync discriminator')
@@ -22,6 +22,7 @@ parser.add_argument("--data_root", help="Root folder of the preprocessed LRS2 da
 
 parser.add_argument('--checkpoint_dir', help='Save checkpoints to this directory', required=True, type=str)
 parser.add_argument('--checkpoint_path', help='Resumed from this checkpoint', default=None, type=str)
+parser.add_argument('--wandb_name', help='WandB name', default='syncnet_avspeech', type=str)
 
 args = parser.parse_args()
 
@@ -143,6 +144,11 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
     global global_step, global_epoch
     resumed_step = global_step
     
+    # init wandb run
+    wandb_config = hparams.data
+    wandb.init(project=args.wandb_name, config=wandb_config, allow_val_change=true)
+    del wandb_config
+    
     while global_epoch < nepochs:
         running_loss = 0.
         prog_bar = tqdm(enumerate(train_data_loader))
@@ -165,8 +171,9 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
             global_step += 1
             cur_session_steps = global_step - resumed_step
             running_loss += loss.item()
-
+            temp_loss = running_loss / (step + 1)
             if global_step == 1 or global_step % checkpoint_interval == 0:
+                wandb.log({"train-loss": temp_loss, "step": global_step, "epoch": global_epoch, commit=False})
                 save_checkpoint(
                     model, optimizer, global_step, checkpoint_dir, global_epoch)
 
@@ -174,7 +181,7 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
                 with torch.no_grad():
                     eval_model(test_data_loader, global_step, device, model, checkpoint_dir)
 
-            prog_bar.set_description('Loss: {}'.format(running_loss / (step + 1)))
+            prog_bar.set_description('Loss: {}'.format(temp_loss))
 
         global_epoch += 1
 
@@ -201,6 +208,7 @@ def eval_model(test_data_loader, global_step, device, model, checkpoint_dir):
             if step > eval_steps: break
 
         averaged_loss = sum(losses) / len(losses)
+        wandb.log({"val-loss": averaged_loss, "step": global_step, "epoch": global_epoch})
         print(averaged_loss)
 
         return
