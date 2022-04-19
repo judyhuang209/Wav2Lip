@@ -251,7 +251,8 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
             temp_l1 = running_l1_loss / (step + 1)
             temp_syncloss = running_sync_loss / (step + 1)
             if global_step == 1 or global_step % checkpoint_interval == 0:
-                wandb.log({"train": {"l1": temp_l1, "sync_loss": temp_syncloss}, "step": global_step, "epoch": global_epoch, commit=False})
+                wandb.log({"train": {"l1": temp_l1, "sync_loss": temp_syncloss}, "step": global_step, 
+                           "epoch": global_epoch}, commit=False)
                 save_checkpoint(
                     model, optimizer, global_step, checkpoint_dir, global_epoch)
 
@@ -351,7 +352,7 @@ if __name__ == "__main__":
 
     # Dataset and Dataloader setup
     train_dataset = Dataset('train')
-    test_dataset = Dataset('val')
+    test_dataset = Dataset('test')
 
     train_data_loader = data_utils.DataLoader(
         train_dataset, batch_size=hparams.batch_size, shuffle=True,

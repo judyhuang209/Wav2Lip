@@ -15,7 +15,7 @@ import numpy as np
 
 from glob import glob
 
-import os, random, cv2, argparse
+import os, random, cv2, argparse, wandb
 from hparams import hparams, get_image_list
 
 parser = argparse.ArgumentParser(description='Code to train the Wav2Lip model WITH the visual quality discriminator')
@@ -27,6 +27,7 @@ parser.add_argument('--syncnet_checkpoint_path', help='Load the pre-trained Expe
 
 parser.add_argument('--checkpoint_path', help='Resume generator from this checkpoint', default=None, type=str)
 parser.add_argument('--disc_checkpoint_path', help='Resume quality disc from this checkpoint', default=None, type=str)
+parser.add_argument('--wandb_name', help='WandB name', default='hq_wav2lip_avspeech', type=str)
 
 args = parser.parse_args()
 
@@ -203,7 +204,12 @@ def train(device, model, disc, train_data_loader, test_data_loader, optimizer, d
           checkpoint_dir=None, checkpoint_interval=None, nepochs=None):
     global global_step, global_epoch
     resumed_step = global_step
-
+    
+    # init wandb run
+    wandb_config = hparams.data
+    wandb.init(project=args.wandb_name, config=wandb_config, allow_val_change=true)
+    del wandb_config
+    
     while global_epoch < nepochs:
         print('Starting Epoch: {}'.format(global_epoch))
         running_sync_loss, running_l1_loss, disc_loss, running_perceptual_loss = 0., 0., 0., 0.
@@ -275,8 +281,18 @@ def train(device, model, disc, train_data_loader, test_data_loader, optimizer, d
                 running_perceptual_loss += perceptual_loss.item()
             else:
                 running_perceptual_loss += 0.
-
+            
+            temp_l1 = running_l1_loss / (step + 1)
+            temp_syncloss = running_sync_loss / (step + 1)
+            temp_perceptual_loss = running_perceptual_loss / (step + 1)
+            temp_disc_fake_loss = running_disc_fake_loss / (step + 1)
+            temp_disc_real_loss = running_disc_real_loss / (step + 1)
+            
             if global_step == 1 or global_step % checkpoint_interval == 0:
+                wandb.log({"train": {"l1": temp_l1, "sync_loss": temp_syncloss, "perceptual_loss": temp_perceptual_loss,
+                                    "disc_fake_loss": temp_disc_fake_loss, "disc_real_loss": temp_disc_real_loss}, 
+                           "step": global_step, "epoch": global_epoch}, commit=False)
+                
                 save_checkpoint(
                     model, optimizer, global_step, checkpoint_dir, global_epoch)
                 save_checkpoint(disc, disc_optimizer, global_step, checkpoint_dir, global_epoch, prefix='disc_')
@@ -289,11 +305,11 @@ def train(device, model, disc, train_data_loader, test_data_loader, optimizer, d
                     if average_sync_loss < .75:
                         hparams.set_hparam('syncnet_wt', 0.03)
 
-            prog_bar.set_description('L1: {}, Sync: {}, Percep: {} | Fake: {}, Real: {}'.format(running_l1_loss / (step + 1),
-                                                                                        running_sync_loss / (step + 1),
-                                                                                        running_perceptual_loss / (step + 1),
-                                                                                        running_disc_fake_loss / (step + 1),
-                                                                                        running_disc_real_loss / (step + 1)))
+            prog_bar.set_description('L1: {}, Sync: {}, Percep: {} | Fake: {}, Real: {}'.format(temp_l1,
+                                                                                        temp_syncloss,
+                                                                                        temp_perceptual_loss,
+                                                                                        temp_disc_fake_loss,
+                                                                                        temp_disc_real_loss))
 
         global_epoch += 1
 
@@ -343,11 +359,20 @@ def eval_model(test_data_loader, global_step, device, model, disc):
 
             if step > eval_steps: break
 
-        print('L1: {}, Sync: {}, Percep: {} | Fake: {}, Real: {}'.format(sum(running_l1_loss) / len(running_l1_loss),
-                                                            sum(running_sync_loss) / len(running_sync_loss),
-                                                            sum(running_perceptual_loss) / len(running_perceptual_loss),
-                                                            sum(running_disc_fake_loss) / len(running_disc_fake_loss),
-                                                             sum(running_disc_real_loss) / len(running_disc_real_loss)))
+        temp_l1 = sum(running_l1_loss) / len(running_l1_loss)
+        temp_syncloss = sum(running_sync_loss) / len(running_sync_loss)
+        temp_perceptual_loss = sum(running_perceptual_loss) / len(running_perceptual_loss)
+        temp_disc_fake_loss = sum(running_disc_fake_loss) / len(running_disc_fake_loss)
+        temp_disc_real_loss = sum(running_disc_real_loss) / len(running_disc_real_loss)
+        
+        wandb.log({"val": {"l1": temp_l1, "sync_loss": temp_syncloss, "perceptual_loss": temp_perceptual_loss,
+                                    "disc_fake_loss": temp_disc_fake_loss, "disc_real_loss": temp_disc_real_loss}, 
+                           "step": global_step, "epoch": global_epoch})
+        print('L1: {}, Sync: {}, Percep: {} | Fake: {}, Real: {}'.format(temp_l1,
+                                                            temp_syncloss,
+                                                            temp_perceptual_loss,
+                                                            temp_disc_fake_loss,
+                                                            temp_disc_real_loss)))
         return sum(running_sync_loss) / len(running_sync_loss)
 
 

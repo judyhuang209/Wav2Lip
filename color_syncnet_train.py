@@ -146,7 +146,7 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
     
     # init wandb run
     wandb_config = hparams.data
-    wandb.init(project=args.wandb_name, config=wandb_config, allow_val_change=true)
+    wandb.init(project=args.wandb_name, config=wandb_config, allow_val_change=True)
     del wandb_config
     
     while global_epoch < nepochs:
@@ -173,7 +173,7 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
             running_loss += loss.item()
             temp_loss = running_loss / (step + 1)
             if global_step == 1 or global_step % checkpoint_interval == 0:
-                wandb.log({"train-loss": temp_loss, "step": global_step, "epoch": global_epoch, commit=False})
+                wandb.log({"train-loss": temp_loss, "step": global_step, "epoch": global_epoch}, commit=False)
                 save_checkpoint(
                     model, optimizer, global_step, checkpoint_dir, global_epoch)
 
@@ -259,7 +259,7 @@ if __name__ == "__main__":
 
     # Dataset and Dataloader setup
     train_dataset = Dataset('train')
-    test_dataset = Dataset('val')
+    test_dataset = Dataset('test')
 
     train_data_loader = data_utils.DataLoader(
         train_dataset, batch_size=hparams.syncnet_batch_size, shuffle=True,

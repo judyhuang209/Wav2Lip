@@ -51,9 +51,9 @@ def process_video_file(vfile, args, gpu_id):
     vidname = os.path.basename(vfile).split('.')[0]
     dirname = vfile.split('/')[-2]
 
-    # fulldir = path.join(args.preprocessed_root, dirname, vidname)
+    fulldir = path.join(args.preprocessed_root, dirname, vidname)
     # for avspeech
-    fulldir = path.join(args.preprocessed_root, vidname)
+    # fulldir = path.join(args.preprocessed_root, vidname)
 
     os.makedirs(fulldir, exist_ok=True)
 
@@ -76,9 +76,9 @@ def process_audio_file(vfile, args):
     vidname = os.path.basename(vfile).split('.')[0]
     dirname = vfile.split('/')[-2]
 
-    # fulldir = path.join(args.preprocessed_root, dirname, vidname)
+    fulldir = path.join(args.preprocessed_root, dirname, vidname)
     # for avspeech
-    fulldir = path.join(args.preprocessed_root, vidname)
+    # fulldir = path.join(args.preprocessed_root, vidname)
     os.makedirs(fulldir, exist_ok=True)
 
     wavpath = path.join(fulldir, 'audio.wav')
@@ -100,9 +100,9 @@ def mp_handler(job):
 def main(args):
     print('Started processing for {} with {} GPUs'.format(args.data_root, args.ngpu))
 
-    # filelist = glob(path.join(args.data_root, '*/*.mp4'))
+    filelist = glob(path.join(args.data_root, '*/*.mp4'))
     # for AVSpeech
-    filelist = glob(path.join(args.data_root, '*.mp4'))
+    # filelist = glob(path.join(args.data_root, '*.mp4'))
 
     jobs = [(vfile, args, i % args.ngpu) for i, vfile in enumerate(filelist)]
     p = ThreadPoolExecutor(args.ngpu)

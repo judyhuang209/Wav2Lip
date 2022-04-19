@@ -1,3 +1,9 @@
 python color_syncnet_train.py --data_root lrs2_preprocessed/ --checkpoint_dir my_checkpoints/SyncNet
 
 python preprocess.py --data_root ../AVSpeechDownloader/subtest --preprocessed_root avspeech_preprocessed/ --batch_size 4
+
+python preprocess.py --data_root /work/u2529450/AVSpeechDownloader/test --preprocessed_root /work/u2529450/avspeech_preprocessed
+
+python color_syncnet_train.py --data_root /work/u2529450/avspeech_preprocessed/ --checkpoint_dir my_checkpoints/SyncNet_test --wandb_name syncnet_test
+
+python color_syncnet_train.py --data_root ../avspeech_preprocessed/ --checkpoint_dir my_checkpoints/SyncNet_test --wandb_name syncnet_test
