@@ -23,14 +23,14 @@ parser = argparse.ArgumentParser(description='Code to train the Wav2Lip model WI
 parser.add_argument("--data_root", help="Root folder of the preprocessed LRS2 dataset", required=True, type=str)
 
 parser.add_argument('--checkpoint_dir', help='Save checkpoints to this directory', required=True, type=str)
-parser.add_argument('--syncnet_checkpoint_path', help='Load the pre-trained Expert discriminator', required=True, type=str)
+parser.add_argument('--syncnet_checkpoint_path', help='Load the pre-trained Expert discriminator', required=True,
+                    type=str)
 
 parser.add_argument('--checkpoint_path', help='Resume generator from this checkpoint', default=None, type=str)
 parser.add_argument('--disc_checkpoint_path', help='Resume quality disc from this checkpoint', default=None, type=str)
 parser.add_argument('--wandb_name', help='WandB name', default='hq_wav2lip_avspeech', type=str)
 
 args = parser.parse_args()
-
 
 global_step = 0
 global_epoch = 0
@@ -39,6 +39,7 @@ print('use_cuda: {}'.format(use_cuda))
 
 syncnet_T = 5
 syncnet_mel_step_size = 16
+
 
 class Dataset(object):
     def __init__(self, split):
@@ -81,15 +82,15 @@ class Dataset(object):
         else:
             start_frame_num = self.get_frame_id(start_frame)
         start_idx = int(80. * (start_frame_num / float(hparams.fps)))
-        
+
         end_idx = start_idx + syncnet_mel_step_size
 
-        return spec[start_idx : end_idx, :]
+        return spec[start_idx: end_idx, :]
 
     def get_segmented_mels(self, spec, start_frame):
         mels = []
         assert syncnet_T == 5
-        start_frame_num = self.get_frame_id(start_frame) + 1 # 0-indexing ---> 1-indexing
+        start_frame_num = self.get_frame_id(start_frame) + 1  # 0-indexing ---> 1-indexing
         if start_frame_num - 2 < 0: return None
         for i in range(start_frame_num, start_frame_num + syncnet_T):
             m = self.crop_audio_window(spec, i - 2)
@@ -118,7 +119,7 @@ class Dataset(object):
             img_names = list(glob(join(vidname, '*.jpg')))
             if len(img_names) <= 3 * syncnet_T:
                 continue
-            
+
             img_name = random.choice(img_names)
             wrong_img_name = random.choice(img_names)
             while wrong_img_name == img_name:
@@ -146,7 +147,7 @@ class Dataset(object):
                 continue
 
             mel = self.crop_audio_window(orig_mel.copy(), img_name)
-            
+
             if (mel.shape[0] != syncnet_mel_step_size):
                 continue
 
@@ -155,7 +156,7 @@ class Dataset(object):
 
             window = self.prepare_window(window)
             y = window.copy()
-            window[:, :, window.shape[2]//2:] = 0.
+            window[:, :, window.shape[2] // 2:] = 0.
 
             wrong_window = self.prepare_window(wrong_window)
             x = np.concatenate([window, wrong_window], axis=0)
@@ -165,6 +166,7 @@ class Dataset(object):
             indiv_mels = torch.FloatTensor(indiv_mels).unsqueeze(1)
             y = torch.FloatTensor(y)
             return x, indiv_mels, mel, y
+
 
 def save_sample_images(x, g, gt, global_step, checkpoint_dir):
     x = (x.detach().cpu().numpy().transpose(0, 2, 3, 4, 1) * 255.).astype(np.uint8)
@@ -179,12 +181,18 @@ def save_sample_images(x, g, gt, global_step, checkpoint_dir):
         for t in range(len(c)):
             cv2.imwrite('{}/{}_{}.jpg'.format(folder, batch_idx, t), c[t])
 
+
 logloss = nn.BCELoss()
+
+
 def cosine_loss(a, v, y):
     d = nn.functional.cosine_similarity(a, v)
+    m = nn.Sigmoid()
+    d = m(d)
     loss = logloss(d.unsqueeze(1), y)
 
     return loss
+
 
 device = torch.device("cuda" if use_cuda else "cpu")
 syncnet = SyncNet().to(device)
@@ -192,24 +200,27 @@ for p in syncnet.parameters():
     p.requires_grad = False
 
 recon_loss = nn.L1Loss()
+
+
 def get_sync_loss(mel, g):
-    g = g[:, :, :, g.size(3)//2:]
+    g = g[:, :, :, g.size(3) // 2:]
     g = torch.cat([g[:, :, i] for i in range(syncnet_T)], dim=1)
     # B, 3 * T, H//2, W
     a, v = syncnet(mel, g)
     y = torch.ones(g.size(0), 1).float().to(device)
     return cosine_loss(a, v, y)
 
+
 def train(device, model, disc, train_data_loader, test_data_loader, optimizer, disc_optimizer,
           checkpoint_dir=None, checkpoint_interval=None, nepochs=None):
     global global_step, global_epoch
     resumed_step = global_step
-    
+
     # init wandb run
     wandb_config = hparams.data
-    wandb.init(project=args.wandb_name, config=wandb_config, allow_val_change=true)
+    wandb.init(project=args.wandb_name, config=wandb_config, allow_val_change=True)
     del wandb_config
-    
+
     while global_epoch < nepochs:
         print('Starting Epoch: {}'.format(global_epoch))
         running_sync_loss, running_l1_loss, disc_loss, running_perceptual_loss = 0., 0., 0., 0.
@@ -243,7 +254,7 @@ def train(device, model, disc, train_data_loader, test_data_loader, optimizer, d
             l1loss = recon_loss(g, gt)
 
             loss = hparams.syncnet_wt * sync_loss + hparams.disc_wt * perceptual_loss + \
-                                    (1. - hparams.syncnet_wt - hparams.disc_wt) * l1loss
+                   (1. - hparams.syncnet_wt - hparams.disc_wt) * l1loss
 
             loss.backward()
             optimizer.step()
@@ -281,22 +292,21 @@ def train(device, model, disc, train_data_loader, test_data_loader, optimizer, d
                 running_perceptual_loss += perceptual_loss.item()
             else:
                 running_perceptual_loss += 0.
-            
+
             temp_l1 = running_l1_loss / (step + 1)
             temp_syncloss = running_sync_loss / (step + 1)
             temp_perceptual_loss = running_perceptual_loss / (step + 1)
             temp_disc_fake_loss = running_disc_fake_loss / (step + 1)
             temp_disc_real_loss = running_disc_real_loss / (step + 1)
-            
+
             if global_step == 1 or global_step % checkpoint_interval == 0:
                 wandb.log({"train": {"l1": temp_l1, "sync_loss": temp_syncloss, "perceptual_loss": temp_perceptual_loss,
-                                    "disc_fake_loss": temp_disc_fake_loss, "disc_real_loss": temp_disc_real_loss}, 
+                                     "disc_fake_loss": temp_disc_fake_loss, "disc_real_loss": temp_disc_real_loss},
                            "step": global_step, "epoch": global_epoch}, commit=False)
-                
+
                 save_checkpoint(
                     model, optimizer, global_step, checkpoint_dir, global_epoch)
                 save_checkpoint(disc, disc_optimizer, global_step, checkpoint_dir, global_epoch, prefix='disc_')
-
 
             if global_step % hparams.eval_interval == 0:
                 with torch.no_grad():
@@ -306,12 +316,13 @@ def train(device, model, disc, train_data_loader, test_data_loader, optimizer, d
                         hparams.set_hparam('syncnet_wt', 0.03)
 
             prog_bar.set_description('L1: {}, Sync: {}, Percep: {} | Fake: {}, Real: {}'.format(temp_l1,
-                                                                                        temp_syncloss,
-                                                                                        temp_perceptual_loss,
-                                                                                        temp_disc_fake_loss,
-                                                                                        temp_disc_real_loss))
+                                                                                                temp_syncloss,
+                                                                                                temp_perceptual_loss,
+                                                                                                temp_disc_fake_loss,
+                                                                                                temp_disc_real_loss))
 
         global_epoch += 1
+
 
 def eval_model(test_data_loader, global_step, device, model, disc):
     eval_steps = 300
@@ -338,7 +349,7 @@ def eval_model(test_data_loader, global_step, device, model, disc):
             running_disc_fake_loss.append(disc_fake_loss.item())
 
             sync_loss = get_sync_loss(mel, g)
-            
+
             if hparams.disc_wt > 0.:
                 perceptual_loss = disc.perceptual_forward(g)
             else:
@@ -347,11 +358,11 @@ def eval_model(test_data_loader, global_step, device, model, disc):
             l1loss = recon_loss(g, gt)
 
             loss = hparams.syncnet_wt * sync_loss + hparams.disc_wt * perceptual_loss + \
-                                    (1. - hparams.syncnet_wt - hparams.disc_wt) * l1loss
+                   (1. - hparams.syncnet_wt - hparams.disc_wt) * l1loss
 
             running_l1_loss.append(l1loss.item())
             running_sync_loss.append(sync_loss.item())
-            
+
             if hparams.disc_wt > 0.:
                 running_perceptual_loss.append(perceptual_loss.item())
             else:
@@ -364,15 +375,15 @@ def eval_model(test_data_loader, global_step, device, model, disc):
         temp_perceptual_loss = sum(running_perceptual_loss) / len(running_perceptual_loss)
         temp_disc_fake_loss = sum(running_disc_fake_loss) / len(running_disc_fake_loss)
         temp_disc_real_loss = sum(running_disc_real_loss) / len(running_disc_real_loss)
-        
+
         wandb.log({"val": {"l1": temp_l1, "sync_loss": temp_syncloss, "perceptual_loss": temp_perceptual_loss,
-                                    "disc_fake_loss": temp_disc_fake_loss, "disc_real_loss": temp_disc_real_loss}, 
-                           "step": global_step, "epoch": global_epoch})
+                           "disc_fake_loss": temp_disc_fake_loss, "disc_real_loss": temp_disc_real_loss},
+                   "step": global_step, "epoch": global_epoch})
         print('L1: {}, Sync: {}, Percep: {} | Fake: {}, Real: {}'.format(temp_l1,
-                                                            temp_syncloss,
-                                                            temp_perceptual_loss,
-                                                            temp_disc_fake_loss,
-                                                            temp_disc_real_loss)))
+                                                                         temp_syncloss,
+                                                                         temp_perceptual_loss,
+                                                                         temp_disc_fake_loss,
+                                                                         temp_disc_real_loss))
         return sum(running_sync_loss) / len(running_sync_loss)
 
 
@@ -387,6 +398,7 @@ def save_checkpoint(model, optimizer, step, checkpoint_dir, epoch, prefix=''):
         "global_epoch": epoch,
     }, checkpoint_path)
     print("Saved checkpoint:", checkpoint_path)
+
 
 def _load(checkpoint_path):
     if use_cuda:
@@ -419,6 +431,7 @@ def load_checkpoint(path, model, optimizer, reset_optimizer=False, overwrite_glo
 
     return model
 
+
 if __name__ == "__main__":
     checkpoint_dir = args.checkpoint_dir
 
@@ -436,7 +449,7 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if use_cuda else "cpu")
 
-     # Model
+    # Model
     model = Wav2Lip().to(device)
     disc = Wav2Lip_disc_qual().to(device)
 
@@ -446,23 +459,23 @@ if __name__ == "__main__":
     optimizer = optim.Adam([p for p in model.parameters() if p.requires_grad],
                            lr=hparams.initial_learning_rate, betas=(0.5, 0.999))
     disc_optimizer = optim.Adam([p for p in disc.parameters() if p.requires_grad],
-                           lr=hparams.disc_initial_learning_rate, betas=(0.5, 0.999))
+                                lr=hparams.disc_initial_learning_rate, betas=(0.5, 0.999))
 
     if args.checkpoint_path is not None:
         load_checkpoint(args.checkpoint_path, model, optimizer, reset_optimizer=False)
 
     if args.disc_checkpoint_path is not None:
-        load_checkpoint(args.disc_checkpoint_path, disc, disc_optimizer, 
-                                reset_optimizer=False, overwrite_global_states=False)
-        
-    load_checkpoint(args.syncnet_checkpoint_path, syncnet, None, reset_optimizer=True, 
-                                overwrite_global_states=False)
+        load_checkpoint(args.disc_checkpoint_path, disc, disc_optimizer,
+                        reset_optimizer=False, overwrite_global_states=False)
+
+    load_checkpoint(args.syncnet_checkpoint_path, syncnet, None, reset_optimizer=True,
+                    overwrite_global_states=False)
 
     if not os.path.exists(checkpoint_dir):
         os.mkdir(checkpoint_dir)
 
     # Train!
     train(device, model, disc, train_data_loader, test_data_loader, optimizer, disc_optimizer,
-              checkpoint_dir=checkpoint_dir,
-              checkpoint_interval=hparams.checkpoint_interval,
-              nepochs=hparams.nepochs)
+          checkpoint_dir=checkpoint_dir,
+          checkpoint_interval=hparams.checkpoint_interval,
+          nepochs=hparams.nepochs)

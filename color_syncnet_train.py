@@ -16,6 +16,8 @@ from glob import glob
 import os, random, cv2, argparse, wandb
 from hparams import hparams, get_image_list
 
+os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+
 parser = argparse.ArgumentParser(description='Code to train the expert lip-sync discriminator')
 
 parser.add_argument("--data_root", help="Root folder of the preprocessed LRS2 dataset", required=True)
@@ -26,7 +28,6 @@ parser.add_argument('--wandb_name', help='WandB name', default='syncnet_avspeech
 
 args = parser.parse_args()
 
-
 global_step = 0
 global_epoch = 0
 use_cuda = torch.cuda.is_available()
@@ -34,6 +35,7 @@ print('use_cuda: {}'.format(use_cuda))
 
 syncnet_T = 5
 syncnet_mel_step_size = 16
+
 
 class Dataset(object):
     def __init__(self, split):
@@ -61,8 +63,7 @@ class Dataset(object):
 
         end_idx = start_idx + syncnet_mel_step_size
 
-        return spec[start_idx : end_idx, :]
-
+        return spec[start_idx: end_idx, :]
 
     def __len__(self):
         return len(self.all_videos)
@@ -124,31 +125,36 @@ class Dataset(object):
             # H x W x 3 * T
             x = np.concatenate(window, axis=2) / 255.
             x = x.transpose(2, 0, 1)
-            x = x[:, x.shape[1]//2:]
+            x = x[:, x.shape[1] // 2:]
 
             x = torch.FloatTensor(x)
             mel = torch.FloatTensor(mel.T).unsqueeze(0)
 
             return x, mel, y
 
+
 logloss = nn.BCELoss()
+
+
 def cosine_loss(a, v, y):
     d = nn.functional.cosine_similarity(a, v)
+    m = nn.Sigmoid()
+    d = m(d)
     loss = logloss(d.unsqueeze(1), y)
 
     return loss
 
+
 def train(device, model, train_data_loader, test_data_loader, optimizer,
           checkpoint_dir=None, checkpoint_interval=None, nepochs=None):
-
     global global_step, global_epoch
     resumed_step = global_step
-    
+
     # init wandb run
     wandb_config = hparams.data
     wandb.init(project=args.wandb_name, config=wandb_config, allow_val_change=True)
     del wandb_config
-    
+
     while global_epoch < nepochs:
         running_loss = 0.
         prog_bar = tqdm(enumerate(train_data_loader))
@@ -164,7 +170,15 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
             a, v = model(mel, x)
             y = y.to(device)
 
+            print('a', a)
+            # print('size a', len(a[0]))
+            print('v', v)
+            # print('size v', len(v[0]))
+            print('y', y)
+            # print('size y', len(y))
+
             loss = cosine_loss(a, v, y)
+            print('loss', loss)
             loss.backward()
             optimizer.step()
 
@@ -185,6 +199,7 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
 
         global_epoch += 1
 
+
 def eval_model(test_data_loader, global_step, device, model, checkpoint_dir):
     eval_steps = 1400
     print('Evaluating for {} steps'.format(eval_steps))
@@ -203,6 +218,7 @@ def eval_model(test_data_loader, global_step, device, model, checkpoint_dir):
             y = y.to(device)
 
             loss = cosine_loss(a, v, y)
+
             losses.append(loss.item())
 
             if step > eval_steps: break
@@ -213,8 +229,8 @@ def eval_model(test_data_loader, global_step, device, model, checkpoint_dir):
 
         return
 
-def save_checkpoint(model, optimizer, step, checkpoint_dir, epoch):
 
+def save_checkpoint(model, optimizer, step, checkpoint_dir, epoch):
     checkpoint_path = join(
         checkpoint_dir, "checkpoint_step{:09d}.pth".format(global_step))
     optimizer_state = optimizer.state_dict() if hparams.save_optimizer_state else None
@@ -226,6 +242,7 @@ def save_checkpoint(model, optimizer, step, checkpoint_dir, epoch):
     }, checkpoint_path)
     print("Saved checkpoint:", checkpoint_path)
 
+
 def _load(checkpoint_path):
     if use_cuda:
         checkpoint = torch.load(checkpoint_path)
@@ -233,6 +250,7 @@ def _load(checkpoint_path):
         checkpoint = torch.load(checkpoint_path,
                                 map_location=lambda storage, loc: storage)
     return checkpoint
+
 
 def load_checkpoint(path, model, optimizer, reset_optimizer=False):
     global global_step
@@ -251,6 +269,7 @@ def load_checkpoint(path, model, optimizer, reset_optimizer=False):
 
     return model
 
+
 if __name__ == "__main__":
     checkpoint_dir = args.checkpoint_dir
     checkpoint_path = args.checkpoint_path
@@ -258,8 +277,8 @@ if __name__ == "__main__":
     if not os.path.exists(checkpoint_dir): os.mkdir(checkpoint_dir)
 
     # Dataset and Dataloader setup
-    train_dataset = Dataset('train')
-    test_dataset = Dataset('test')
+    train_dataset = Dataset('subtest_train')
+    test_dataset = Dataset('subtest_test')
 
     train_data_loader = data_utils.DataLoader(
         train_dataset, batch_size=hparams.syncnet_batch_size, shuffle=True,

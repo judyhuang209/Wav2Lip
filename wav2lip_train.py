@@ -180,6 +180,8 @@ def save_sample_images(x, g, gt, global_step, checkpoint_dir):
 logloss = nn.BCELoss()
 def cosine_loss(a, v, y):
     d = nn.functional.cosine_similarity(a, v)
+    m = nn.Sigmoid()
+    d = m(d)
     loss = logloss(d.unsqueeze(1), y)
 
     return loss
