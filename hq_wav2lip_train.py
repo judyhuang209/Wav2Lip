@@ -187,8 +187,8 @@ logloss = nn.BCELoss()
 
 def cosine_loss(a, v, y):
     d = nn.functional.cosine_similarity(a, v)
-    m = nn.Sigmoid()
-    d = m(d)
+    # m = nn.Sigmoid()
+    # d = m(d)
     loss = logloss(d.unsqueeze(1), y)
 
     return loss
@@ -352,6 +352,7 @@ def eval_model(test_data_loader, global_step, device, model, disc):
 
             if hparams.disc_wt > 0.:
                 perceptual_loss = disc.perceptual_forward(g)
+                # perceptual_loss = disc.perceptual_forward(g, gt)
             else:
                 perceptual_loss = 0.
 

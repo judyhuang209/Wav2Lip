@@ -3,6 +3,10 @@ from torch import nn
 from torch.nn import functional as F
 import math
 
+# new perceptual loss
+from pytorch_msssim import ssim, ms_ssim, SSIM, MS_SSIM
+# paper: https://ece.uwaterloo.ca/~z70wang/publications/msssim.pdf
+
 from .conv_CBAM import Conv2dTranspose, Conv2d, nonorm_Conv2d
 
 class Wav2Lip(nn.Module):
@@ -168,8 +172,13 @@ class Wav2Lip_disc_qual(nn.Module):
         for f in self.face_encoder_blocks:
             false_feats = f(false_feats)
 
-        false_pred_loss = F.binary_cross_entropy(self.binary_pred(false_feats).view(len(false_feats), -1), 
-                                        torch.ones((len(false_feats), 1)).cuda())
+        # false_pred_loss = F.binary_cross_entropy(self.binary_pred(false_feats).view(len(false_feats), -1), 
+        #                                 torch.ones((len(false_feats), 1)).cuda())
+        
+        # using ms_ssim from https://github.com/VainF/pytorch-msssim
+        false_pred_loss = 1 - ms_ssim( self.binary_pred(false_feats).view(len(false_feats), -1), 
+                                        torch.ones((len(false_feats), 1)).cuda(), data_range=1, size_average=True )
+
 
         return false_pred_loss
 
