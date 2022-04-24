@@ -1,21 +1,38 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from .cbam import ChannelAttention, SpatialAttention
 
 class Conv2d(nn.Module):
-    def __init__(self, cin, cout, kernel_size, stride, padding, residual=False, *args, **kwargs):
+    def __init__(self, cin, cout, kernel_size, stride, padding, residual=False, cbam=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.conv_block = nn.Sequential(
                             nn.Conv2d(cin, cout, kernel_size, stride, padding),
                             nn.BatchNorm2d(cout)
                             )
-        self.act = nn.PReLU()
+        self.act = nn.ReLU()
+
+        if self.cbam:
+            self.ca = ChannelAttention(cout)
+            self.sa = SpatialAttention()
+            
         self.residual = residual
 
     def forward(self, x):
         out = self.conv_block(x)
+        # out = self.act(out)
+        # out = self.ca(out)
+        # out = self.sa()
         if self.residual:
             out += x
+
+        if self.cbam:
+            x = out
+            # ----- previous conv block ------
+            out = self.ca(out) * out
+            out = self.sa(out) * out
+            out += x
+
         return self.act(out)
 
 class nonorm_Conv2d(nn.Module):
@@ -24,7 +41,7 @@ class nonorm_Conv2d(nn.Module):
         self.conv_block = nn.Sequential(
                             nn.Conv2d(cin, cout, kernel_size, stride, padding),
                             )
-        self.act = nn.LeakyReLU(negative_slope=0.01)
+        self.act = nn.LeakyReLU(negative_slope=0.01, inplace=True)
 
     def forward(self, x):
         out = self.conv_block(x)

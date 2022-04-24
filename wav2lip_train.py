@@ -1,8 +1,9 @@
 from os.path import dirname, join, basename, isfile
 from tqdm import tqdm
+from torchinfo import summary
 
-from models.syncnetv2 import SyncNet_color as SyncNet
-from models.wav2lipv2 import Wav2Lip as Wav2Lip
+from models.syncnet import SyncNet_color as SyncNet
+from models.wav2lip import Wav2Lip as Wav2Lip
 import audio
 
 import torch
@@ -25,7 +26,7 @@ parser.add_argument('--checkpoint_dir', help='Save checkpoints to this directory
 parser.add_argument('--syncnet_checkpoint_path', help='Load the pre-trained Expert discriminator', required=True, type=str)
 
 parser.add_argument('--checkpoint_path', help='Resume from this checkpoint', default=None, type=str)
-parser.add_argument('--wandb_name', help='WandB name', default='wav2lip_avspeech', type=str)
+parser.add_argument('--wandb_name', help='WandB name', default='wav2lip_og', type=str)
 
 args = parser.parse_args()
 
@@ -180,8 +181,8 @@ def save_sample_images(x, g, gt, global_step, checkpoint_dir):
 logloss = nn.BCELoss()
 def cosine_loss(a, v, y):
     d = nn.functional.cosine_similarity(a, v)
-    m = nn.Sigmoid()
-    d = m(d)
+    # m = nn.Sigmoid()
+    # d = m(d)
     loss = logloss(d.unsqueeze(1), y)
 
     return loss
@@ -208,7 +209,7 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
     
     # init wandb run
     wandb_config = hparams.data
-    wandb.init(project=args.wandb_name, config=wandb_config, allow_val_change=true)
+    wandb.init(project=args.wandb_name, config=wandb_config, allow_val_change=True)
     del wandb_config
     
     while global_epoch < nepochs:
@@ -263,7 +264,7 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
                     average_sync_loss = eval_model(test_data_loader, global_step, device, model, checkpoint_dir)
 
                     if average_sync_loss < .75:
-                        wandb.config.update({'syncnet_wt': 0.01})
+                        wandb.config.update({'syncnet_wt': 0.01}, allow_val_change=True)
                         hparams.set_hparam('syncnet_wt', 0.01) # without image GAN a lesser weight is sufficient
 
             prog_bar.set_description('L1: {}, Sync Loss: {}'.format(temp_l1,
@@ -354,7 +355,7 @@ if __name__ == "__main__":
 
     # Dataset and Dataloader setup
     train_dataset = Dataset('train')
-    test_dataset = Dataset('test')
+    test_dataset = Dataset('val')
 
     train_data_loader = data_utils.DataLoader(
         train_dataset, batch_size=hparams.batch_size, shuffle=True,
@@ -368,6 +369,7 @@ if __name__ == "__main__":
 
     # Model
     model = Wav2Lip().to(device)
+    print(model)
     print('total trainable params {}'.format(sum(p.numel() for p in model.parameters() if p.requires_grad)))
 
     optimizer = optim.Adam([p for p in model.parameters() if p.requires_grad],
