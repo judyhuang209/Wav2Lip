@@ -3,7 +3,7 @@ from tqdm import tqdm
 from torchinfo import summary
 
 from models.syncnet import SyncNet_color as SyncNet
-from models.wav2lip import Wav2Lip as Wav2Lip
+from models.wav2lip_cbam import Wav2Lip as Wav2Lip
 import audio
 
 import torch
@@ -255,12 +255,14 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
             temp_syncloss = running_sync_loss / (step + 1)
             if global_step == 1 or global_step % checkpoint_interval == 0:
                 wandb.log({"train": {"l1": temp_l1, "sync_loss": temp_syncloss}, "step": global_step, 
-                           "epoch": global_epoch}, commit=False)
+                           "epoch": global_epoch})
                 save_checkpoint(
                     model, optimizer, global_step, checkpoint_dir, global_epoch)
 
             if global_step == 1 or global_step % hparams.eval_interval == 0:
                 with torch.no_grad():
+                    wandb.log({"train": {"l1": temp_l1, "sync_loss": temp_syncloss}, "step": global_step, 
+                           "epoch": global_epoch}, commit=False)
                     average_sync_loss = eval_model(test_data_loader, global_step, device, model, checkpoint_dir)
 
                     if average_sync_loss < .75:

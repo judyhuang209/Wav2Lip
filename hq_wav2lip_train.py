@@ -302,7 +302,7 @@ def train(device, model, disc, train_data_loader, test_data_loader, optimizer, d
             if global_step == 1 or global_step % checkpoint_interval == 0:
                 wandb.log({"train": {"l1": temp_l1, "sync_loss": temp_syncloss, "perceptual_loss": temp_perceptual_loss,
                                      "disc_fake_loss": temp_disc_fake_loss, "disc_real_loss": temp_disc_real_loss},
-                           "step": global_step, "epoch": global_epoch}, commit=False)
+                           "step": global_step, "epoch": global_epoch})
 
                 save_checkpoint(
                     model, optimizer, global_step, checkpoint_dir, global_epoch)
@@ -310,9 +310,13 @@ def train(device, model, disc, train_data_loader, test_data_loader, optimizer, d
 
             if global_step % hparams.eval_interval == 0:
                 with torch.no_grad():
+                    wandb.log({"train": {"l1": temp_l1, "sync_loss": temp_syncloss, "perceptual_loss": temp_perceptual_loss,
+                                     "disc_fake_loss": temp_disc_fake_loss, "disc_real_loss": temp_disc_real_loss},
+                           "step": global_step, "epoch": global_epoch}, commit=False)
                     average_sync_loss = eval_model(test_data_loader, global_step, device, model, disc)
 
                     if average_sync_loss < .75:
+                        wandb.config.update({'syncnet_wt': 0.03}, allow_val_change=True)
                         hparams.set_hparam('syncnet_wt', 0.03)
 
             prog_bar.set_description('L1: {}, Sync: {}, Percep: {} | Fake: {}, Real: {}'.format(temp_l1,

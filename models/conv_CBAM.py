@@ -4,7 +4,23 @@ from torch.nn import functional as F
 from .cbam import ChannelAttention, SpatialAttention
 
 class Conv2d(nn.Module):
-    def __init__(self, cin, cout, kernel_size, stride, padding, residual=False, cbam=False, *args, **kwargs):
+    def __init__(self, cin, cout, kernel_size, stride, padding, residual=False, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.conv_block = nn.Sequential(
+                            nn.Conv2d(cin, cout, kernel_size, stride, padding),
+                            nn.BatchNorm2d(cout)
+                            )
+        self.act = nn.ReLU()
+        self.residual = residual
+
+    def forward(self, x):
+        out = self.conv_block(x)
+        if self.residual:
+            out += x
+        return self.act(out)
+
+class cbam_Conv2d(nn.Module):
+    def __init__(self, cin, cout, kernel_size, stride, padding, residual=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.conv_block = nn.Sequential(
                             nn.Conv2d(cin, cout, kernel_size, stride, padding),
@@ -12,9 +28,8 @@ class Conv2d(nn.Module):
                             )
         self.act = nn.ReLU()
 
-        if self.cbam:
-            self.ca = ChannelAttention(cout)
-            self.sa = SpatialAttention()
+        self.ca = ChannelAttention(cout)
+        self.sa = SpatialAttention()
             
         self.residual = residual
 
@@ -26,14 +41,14 @@ class Conv2d(nn.Module):
         if self.residual:
             out += x
 
-        if self.cbam:
-            x = out
-            # ----- previous conv block ------
-            out = self.ca(out) * out
-            out = self.sa(out) * out
-            out += x
+        x = out
+        # ----- previous conv block ------
+        out = self.ca(out) * out
+        out = self.sa(out) * out
+        out += x
 
         return self.act(out)
+
 
 class nonorm_Conv2d(nn.Module):
     def __init__(self, cin, cout, kernel_size, stride, padding, residual=False, *args, **kwargs):
