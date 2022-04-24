@@ -355,8 +355,7 @@ def eval_model(test_data_loader, global_step, device, model, disc):
             sync_loss = get_sync_loss(mel, g)
 
             if hparams.disc_wt > 0.:
-                perceptual_loss = disc.perceptual_forward(g)
-                # perceptual_loss = disc.perceptual_forward(g, gt)
+                perceptual_loss = disc.perceptual_forward(g, gt)
             else:
                 perceptual_loss = 0.
 
