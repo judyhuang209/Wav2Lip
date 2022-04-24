@@ -164,22 +164,30 @@ class Wav2Lip_disc_qual(nn.Module):
         face_sequences = torch.cat([face_sequences[:, :, i] for i in range(face_sequences.size(2))], dim=0)
         return face_sequences
 
-    def perceptual_forward(self, false_face_sequences):
+    def perceptual_forward(self, false_face_sequences, gt_face_sequences):
         false_face_sequences = self.to_2d(false_face_sequences)
         false_face_sequences = self.get_lower_half(false_face_sequences)
 
-        false_feats = false_face_sequences
-        for f in self.face_encoder_blocks:
-            false_feats = f(false_feats)
+        gt_face_sequences = self.to_2d(gt_face_sequences)
+        gt_face_sequences = self.get_lower_half(gt_face_sequences)
+
+        # false_feats = false_face_sequences
+        # for f in self.face_encoder_blocks:
+        #     false_feats = f(false_feats)
+
+        # print('false_face_sequences.size()', false_face_sequences.size())
+        # print('gt_face_sequences.size()', gt_face_sequences.size())
 
         # false_pred_loss = F.binary_cross_entropy(self.binary_pred(false_feats).view(len(false_feats), -1), 
         #                                 torch.ones((len(false_feats), 1)).cuda())
         
-        # using ms_ssim from https://github.com/VainF/pytorch-msssim
-        false_pred_loss = 1 - ms_ssim( self.binary_pred(false_feats).view(len(false_feats), -1), 
-                                        torch.ones((len(false_feats), 1)).cuda(), data_range=1, size_average=True )
+        # using ssim from https://github.com/VainF/pytorch-msssim
+        false_pred_loss = 1 - ssim( false_face_sequences, gt_face_sequences, data_range=1, size_average=True )
 
-
+        # print(false_face_sequences)
+        # print('false_pred_loss', false_pred_loss)
+        # print('ssim', ssim( false_face_sequences, gt_face_sequences, data_range=1, size_average=True ))
+        # print('gt vs gt ssim', ssim(gt_face_sequences, gt_face_sequences, data_range=1, size_average=True ))
         return false_pred_loss
 
     def forward(self, face_sequences):

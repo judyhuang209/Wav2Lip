@@ -2,7 +2,7 @@ from os.path import dirname, join, basename, isfile
 from tqdm import tqdm
 
 from models import SyncNet_color as SyncNet
-from models import Wav2Lip, Wav2Lip_disc_qual
+from models.wav2lip_cbam import Wav2Lip, Wav2Lip_disc_qual
 import audio
 
 import torch
@@ -247,7 +247,7 @@ def train(device, model, disc, train_data_loader, test_data_loader, optimizer, d
                 sync_loss = 0.
 
             if hparams.disc_wt > 0.:
-                perceptual_loss = disc.perceptual_forward(g)
+                perceptual_loss = disc.perceptual_forward(g, gt)
             else:
                 perceptual_loss = 0.
 
