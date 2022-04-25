@@ -44,8 +44,9 @@ class cbam_Conv2d(nn.Module):
 
         x = out
         # ----- previous conv block ------
-        out = self.ca(out) * out + out
-        out = self.sa(out) * out + out
+        out = self.ca(out) * out
+        out = self.sa(out) * out
+        out += x
 
         return self.act(out)
 
