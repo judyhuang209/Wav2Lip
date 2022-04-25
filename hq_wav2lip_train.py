@@ -2,7 +2,7 @@ from os.path import dirname, join, basename, isfile
 from tqdm import tqdm
 
 from models import SyncNet_color as SyncNet
-from models.wav2lip_cbam import Wav2Lip, Wav2Lip_disc_qual
+from models.wav2lip_coordatt import Wav2Lip, Wav2Lip_disc_qual
 import audio
 
 import torch
@@ -183,8 +183,6 @@ def save_sample_images(x, g, gt, global_step, checkpoint_dir):
 
 
 logloss = nn.BCELoss()
-
-
 def cosine_loss(a, v, y):
     d = nn.functional.cosine_similarity(a, v)
     # m = nn.Sigmoid()

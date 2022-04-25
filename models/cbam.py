@@ -3,7 +3,8 @@ from torch import nn
 from torch.nn import functional as F
 
 '''
-Code borrowed from https://github.com/luuuyi/CBAM.PyTorch/blob/master/model/resnet_cbam.py
+Code: https://github.com/luuuyi/CBAM.PyTorch/blob/master/model/resnet_cbam.py
+Paper: https://arxiv.org/abs/1807.06521
 '''
 
 class ChannelAttention(nn.Module):

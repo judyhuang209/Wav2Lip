@@ -3,7 +3,7 @@ from tqdm import tqdm
 from torchinfo import summary
 
 from models.syncnet import SyncNet_color as SyncNet
-from models.wav2lip_cbam import Wav2Lip as Wav2Lip
+from models.wav2lip_coordatt import Wav2Lip as Wav2Lip
 import audio
 
 import torch
