@@ -1,6 +1,6 @@
 '''
 code from: https://github.com/Andrew-Qibin/CoordAttention/blob/main/coordatt.py
-paper: preprint
+paper: preprint 
 '''
 import torch
 import torch.nn as nn
