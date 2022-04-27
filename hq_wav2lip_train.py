@@ -28,7 +28,7 @@ parser.add_argument('--syncnet_checkpoint_path', help='Load the pre-trained Expe
 
 parser.add_argument('--checkpoint_path', help='Resume generator from this checkpoint', default=None, type=str)
 parser.add_argument('--disc_checkpoint_path', help='Resume quality disc from this checkpoint', default=None, type=str)
-parser.add_argument('--wandb_name', help='WandB name', default='hq_wav2lip_avspeech', type=str)
+parser.add_argument('--wandb_name', help='WandB name', default='hq_wav2lip', type=str)
 
 args = parser.parse_args()
 
