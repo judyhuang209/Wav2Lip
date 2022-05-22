@@ -9,6 +9,7 @@ __pycache__
 *.wav
 filelists/*.txt
 evaluation/test_filelists/lr*.txt
+evaluation/*.txt
 *.pyc
 *.mkv
 *.gif

@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(description='Code to evaluate MS-SSIM and SSIM.
 
 parser.add_argument("--data_root_gt", help="Root folder of the ground truth video frames.", required=True, type=str)
 parser.add_argument("--data_root_gen", help="Root folder of the generated video frames.", required=True, type=str)
-parser.add_argument("--batch_size", help="Batch size of calculating MS-SSIM and SSIM", default="20", type=int)
+parser.add_argument("--batch_size", help="Batch size of calculating MS-SSIM and SSIM", default="50", type=int)
 parser.add_argument("--num_workers", help="The number of CPUs loading data.", default="8", type=int)
 
 args = parser.parse_args()
