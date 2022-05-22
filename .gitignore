@@ -10,6 +10,7 @@ __pycache__
 filelists/*.txt
 evaluation/test_filelists/lr*.txt
 evaluation/*.txt
+evaluation/*.sh
 *.pyc
 *.mkv
 *.gif
@@ -18,3 +19,4 @@ evaluation/*.txt
 main/
 .idea/
 venv/
+wandb/
