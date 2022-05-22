@@ -21,8 +21,6 @@ import face_detection
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ncpu', help='Number of CPUs across which to run in parallel', default=8, type=int)
-parser.add_argument('--batch_size', help='Single GPU Face detection batch size', default=32, type=int)
-parser.add_argument('--ngpu', help='Number of GPUs across which to run in parallel', default=1, type=int)
 parser.add_argument("--data_root", help="Root folder of the evalutaion videos", required=True)
 
 args = parser.parse_args()
@@ -36,7 +34,7 @@ def process_video_file(vfile, args, gpu_id):
     video_stream = cv2.VideoCapture(vfile)
 
     vidname = os.path.basename(vfile).split('.')[0]
-    fulldir = path.join(args.data_root, "frames/", vidname)
+    fulldir = path.join(args.data_root, "frames_all/")
     os.makedirs(fulldir, exist_ok=True)
     frames = []
     count = 0
@@ -46,7 +44,7 @@ def process_video_file(vfile, args, gpu_id):
             video_stream.release()
             break
         frames.append(frame)
-        cv2.imwrite(path.join(fulldir, '{}.jpg'.format(count)), frame)
+        cv2.imwrite(path.join(fulldir, '{}_{}.jpg'.format(vidname, count)), frame)
         count += 1
 
 
@@ -65,11 +63,10 @@ def main(args):
 
     filelist = glob(path.join(args.data_root, '*.mp4'))
 
-    jobs = [(vfile, args, i % args.ngpu) for i, vfile in enumerate(filelist)]
+    jobs = [(vfile, args, i % args.ncpu) for i, vfile in enumerate(filelist)]
     p = ThreadPoolExecutor(args.ncpu)
     futures = [p.submit(mp_handler, j) for j in jobs]
     _ = [r.result() for r in tqdm(as_completed(futures), total=len(futures))]
-
 
 if __name__ == '__main__':
     main(args)

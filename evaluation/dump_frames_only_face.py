@@ -24,6 +24,7 @@ parser.add_argument('--batch_size', help='Single GPU Face detection batch size',
 parser.add_argument('--ngpu', help='Number of GPUs across which to run in parallel', default=1, type=int)
 # parser.add_argument("--data_root", help="Root folder of the evalutaion videos", required=True)
 parser.add_argument("--data_root", help="Root folder of the evalutaion videos", default="/home/judy/Wav2Lip/results/ground_truth/lrs2_gt/")
+parser.add_argument("--img_wid", help="Width(X) of cropped faces (X^2)", default=96, type=int)
 
 
 args = parser.parse_args()
@@ -31,7 +32,7 @@ args = parser.parse_args()
 fa = [face_detection.FaceAlignment(face_detection.LandmarksType._2D, flip_input=False,
                                    device='cuda:{}'.format(id)) for id in range(args.ngpu)]
 
-
+face_size = (args.img_wid, args.img_wid)
 # template = 'ffmpeg -loglevel panic -y -i {} -strict -2 {}'
 
 
@@ -42,7 +43,7 @@ def process_video_file(vfile, args, gpu_id):
 
     vidname = os.path.basename(vfile).split('.')[0]
     # fulldir = path.join(args.data_root, "frames_only_face/", vidname)
-    fulldir = path.join(args.data_root, "frames_only_face_test/")
+    fulldir = path.join(args.data_root, "frames_only_face_all/")
 
     os.makedirs(fulldir, exist_ok=True)
     frames = []
@@ -68,8 +69,9 @@ def process_video_file(vfile, args, gpu_id):
                 continue
 
             x1, y1, x2, y2 = f
-            print(type(f))
-            cv2.imwrite(path.join(fulldir, '{}_{}.jpg'.format(vidname, i)), fb[j][y1:y2, x1:x2])
+            face_to_save = cv2.resize(fb[j][y1:y2, x1:x2], face_size)
+            # cv2.imwrite(path.join(fulldir, '{}_{}.jpg'.format(vidname, i)), fb[j][y1:y2, x1:x2])
+            cv2.imwrite(path.join(fulldir, '{}_{}.jpg'.format(vidname, i)), face_to_save)
 
 
 def mp_handler(job):
