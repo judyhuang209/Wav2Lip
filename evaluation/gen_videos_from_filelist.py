@@ -9,7 +9,9 @@ import torch
 sys.path.append('../')
 import audio
 import face_detection
-from models import Wav2Lip
+# from models.wav2lip import Wav2Lip
+from models.wav2lip_coordatt import Wav2Lip
+
 
 parser = argparse.ArgumentParser(description='Code to generate results for test filelists')
 
@@ -165,7 +167,11 @@ def main():
 		video = os.path.join(data_root, video) + '.mp4'
 
 		command = 'ffmpeg -loglevel panic -y -i {} -strict -2 {}'.format(audio_src, '../temp/temp.wav')
-		subprocess.call(command, shell=True)
+		try:
+			subprocess.call(command, shell=True)
+		except ValueError as e:
+			print(e)
+			continue
 		temp_audio = '../temp/temp.wav'
 
 		wav = audio.load_wav(temp_audio, 16000)
