@@ -20,11 +20,12 @@ sys.path.insert(0, '..')
 import face_detection
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--batch_size', help='Single GPU Face detection batch size', default=32, type=int)
+parser.add_argument('--batch_size', help='Single GPU Face detection batch size', default=4, type=int)
 parser.add_argument('--ngpu', help='Number of GPUs across which to run in parallel', default=1, type=int)
 # parser.add_argument("--data_root", help="Root folder of the evalutaion videos", required=True)
 parser.add_argument("--data_root", help="Root folder of the evalutaion videos", default="/home/judy/Wav2Lip/results/ground_truth/lrs2_gt/")
-parser.add_argument("--img_wid", help="Width(X) of cropped faces (X^2)", default=96, type=int)
+parser.add_argument('--data_root_gt', help='Root folder of the ground truth video to record coordinates to crop if still cannot detect face.', default='frames_all/', type=str)
+parser.add_argument("--img_wid", help="Width(X) of cropped faces (X^2)", default=200, type=int)
 
 
 args = parser.parse_args()
@@ -66,7 +67,17 @@ def process_video_file(vfile, args, gpu_id):
         for j, f in enumerate(preds):
             i += 1
             if f is None:
-                continue
+                print('Still can\'t detect face in {}'.format(d_file))
+                print('Start retrieving face coordinates from ground truth video...')
+                gt_path = path.join(args.data_root_gt, d_file)
+                gt_img = cv2.imread(gt_path)
+                gt_frame = [[gt_img]]
+
+                f = fa[gpu_id].get_detections_for_batch(np.asarray(gt_frame[0]))[0]
+                if f is None:
+                    print('Bad file: {}'.format(d_file))
+                    continue
+                print('Get face from ground truth video at {}.'.format(f))
 
             x1, y1, x2, y2 = f
             face_to_save = cv2.resize(fb[j][y1:y2, x1:x2], face_size)

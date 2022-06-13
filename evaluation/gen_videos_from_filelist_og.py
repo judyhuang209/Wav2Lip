@@ -9,8 +9,8 @@ import torch
 sys.path.append('../')
 import audio
 import face_detection
-# from models.wav2lip import Wav2Lip
-from models.wav2lip_coordatt import Wav2Lip
+from models.wav2lip import Wav2Lip
+# from models.wav2lip_coordatt import Wav2Lip
 
 
 parser = argparse.ArgumentParser(description='Code to generate results for test filelists')

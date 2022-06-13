@@ -198,7 +198,43 @@ def main():
 			full_frames.append(frame)
 
 		if len(full_frames) < len(mel_chunks):
-			continue
+			video, audio_src = line.strip().split()
+
+			audio_src = os.path.join(data_root, audio_src) + '.mp4'
+			video = os.path.join(data_root, video) + '.mp4'
+
+			command = 'ffmpeg -loglevel panic -y -i {} -strict -2 {}'.format(audio_src, '../temp/temp.wav')
+			try:
+				subprocess.call(command, shell=True)
+			except ValueError as e:
+				print(e)
+				continue
+			temp_audio = '../temp/temp.wav'
+
+			wav = audio.load_wav(temp_audio, 16000)
+			mel = audio.melspectrogram(wav)
+			if np.isnan(mel.reshape(-1)).sum() > 0:
+				continue
+
+			mel_chunks = []
+			i = 0
+			while 1:
+				start_idx = int(i * mel_idx_multiplier)
+				if start_idx + mel_step_size > len(mel[0]):
+					break
+				mel_chunks.append(mel[:, start_idx : start_idx + mel_step_size])
+				i += 1
+
+			video_stream = cv2.VideoCapture(video)
+				
+			full_frames = []
+			while 1:
+				still_reading, frame = video_stream.read()
+				if not still_reading or len(full_frames) > len(mel_chunks):
+					video_stream.release()
+					break
+				full_frames.append(frame)
+
 
 		full_frames = full_frames[:len(mel_chunks)]
 

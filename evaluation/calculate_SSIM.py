@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(description='Code to evaluate MS-SSIM and SSIM.
 
 parser.add_argument("--data_root_gt", help="Root folder of the ground truth video frames.", required=True, type=str)
 parser.add_argument("--data_root_gen", help="Root folder of the generated video frames.", required=True, type=str)
-parser.add_argument("--batch_size", help="Batch size of calculating MS-SSIM and SSIM", default="50", type=int)
+parser.add_argument("--batch_size", help="Batch size of calculating MS-SSIM and SSIM", default="24", type=int)
 parser.add_argument("--num_workers", help="The number of CPUs loading data.", default="8", type=int)
 
 args = parser.parse_args()
@@ -47,20 +47,41 @@ def main():
     gt_path = os.path.join(args.data_root_gt, "*.jpg")
     gen_path = os.path.join(args.data_root_gen, "*.jpg")
 
-    all_gt_videos_list = sorted(glob.glob(gt_path))
-    all_gen_videos_list = sorted(glob.glob(gen_path))
+    all_gt_frames_list = sorted(glob.glob(gt_path))
+    all_gen_frames_list = sorted(glob.glob(gen_path))
+    print(len(all_gt_frames_list))
+    print(len(all_gen_frames_list))
 
-    if args.batch_size > len(all_gt_videos_list):
+    filelist_gt_name, filelist_gen_name = [], []
+    for filename in all_gt_frames_list:
+        filelist_gt_name.append(os.path.basename(filename))
+    for filename in all_gen_frames_list:
+        filelist_gen_name.append(os.path.basename(filename))
+
+    inter = list(set(filelist_gt_name).intersection(set(filelist_gen_name)))
+    print('Inter num: {}'.format(len(inter)))
+    inter = sorted(inter)
+    all_gt_frames_list, all_gen_frames_list = [], []
+
+    for filename in inter:
+        all_gt_frames_list.append(os.path.join(args.data_root_gt, filename))
+        all_gen_frames_list.append(os.path.join(args.data_root_gen, filename))
+
+    if args.batch_size > len(inter):
         print(('Warning: batch size is bigger than the data size. '
                 'Setting batch size to data size'))
-        batch_size = len(all_gt_videos_list)
+        batch_size = len(inter)
     else:
         batch_size = args.batch_size
 
-    assert len(all_gt_videos_list) == len(all_gen_videos_list), 'Datasets are not the same size.'
+    print(len(all_gt_frames_list))
+    print(len(all_gen_frames_list))
+    print(all_gt_frames_list[0])
+    print(all_gen_frames_list[0])
+    # assert len(all_gt_videos_list) == len(all_gen_videos_list), 'Datasets are not the same size.'
 
-    gt_dataset = ImagePathDataset(all_gt_videos_list, transforms=TF.ToTensor())
-    gen_dataset = ImagePathDataset(all_gen_videos_list, transforms=TF.ToTensor())
+    gt_dataset = ImagePathDataset(all_gt_frames_list, transforms=TF.ToTensor())
+    gen_dataset = ImagePathDataset(all_gen_frames_list, transforms=TF.ToTensor())
 
     # load datasets in batches
     gt_dataloader = torch.utils.data.DataLoader(gt_dataset,
@@ -100,8 +121,8 @@ def main():
         # X: (N,3,H,W) a batch of non-negative RGB images (0~255)
         # Y: (N,3,H,W)
     
-    print ('Average SSIM: {}'.format(avg_ssim_val/len(all_gt_videos_list)))
-    print ('Average MS SSIM: {}'.format(avg_ms_ssim_val/len(all_gt_videos_list)))
+    print ('Average SSIM: {}'.format(avg_ssim_val/len(all_gt_frames_list)))
+    print ('Average MS SSIM: {}'.format(avg_ms_ssim_val/len(all_gt_frames_list)))
 
 if __name__ == "__main__":
     main()

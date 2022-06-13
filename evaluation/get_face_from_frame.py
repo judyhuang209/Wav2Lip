@@ -82,6 +82,7 @@ def main(args):
     set_differ = set(filelist_frame_name) - set(filelist_face_name)
     list_differ = list(set_differ)
     print(list_differ) # ['12994_1.jpg']
+    print(len(list_differ))
 
     if list_differ is None:
         print('No missing face frames! Skipping...')
@@ -94,4 +95,4 @@ def main(args):
 
 
 if __name__ == '__main__':
-    main(args)
+    main(args) 
