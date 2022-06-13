@@ -171,19 +171,19 @@ class Wav2Lip_disc_qual(nn.Module):
         gt_face_sequences = self.to_2d(gt_face_sequences)
         gt_face_sequences = self.get_lower_half(gt_face_sequences)
 
-        # false_feats = false_face_sequences
-        # for f in self.face_encoder_blocks:
-        #     false_feats = f(false_feats)
+        false_feats = false_face_sequences
+        for f in self.face_encoder_blocks:
+            false_feats = f(false_feats)
 
         # print('false_face_sequences.size()', false_face_sequences.size())
         # print('gt_face_sequences.size()', gt_face_sequences.size())
 
-        # false_pred_loss = F.binary_cross_entropy(self.binary_pred(false_feats).view(len(false_feats), -1), 
-        #                                 torch.ones((len(false_feats), 1)).cuda())
+        bce_loss = F.binary_cross_entropy(self.binary_pred(false_feats).view(len(false_feats), -1), 
+                                        torch.ones((len(false_feats), 1)).cuda())
         
         # code: https://github.com/VainF/pytorch-msssim
         # paper: https://ieeexplore.ieee.org/document/1284395
-        false_pred_loss = 1 - ssim( false_face_sequences, gt_face_sequences, data_range=1, size_average=True )
+        false_pred_loss = 1 - ssim( false_face_sequences, gt_face_sequences, data_range=1, size_average=True ) + bce_loss
 
         # print(false_face_sequences)
         # print('false_pred_loss', false_pred_loss)
